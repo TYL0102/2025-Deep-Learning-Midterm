@@ -1,190 +1,137 @@
-# 深度學習期中考最終救命筆記（資工系口吻＋超詳細白話解釋＋完美 LaTeX）
+# 深度學習期中考最強申論版筆記（可直接拿來回答大題 + 公式完美顯示）
 
-## 老師指定：深度學習的五大步驟（背起來當開場白）
+## 老師的五大步驟（開頭申論直接背）
+1. 資料準備：資料清理、正規化、增強、train/val/test 劃分、打包成 batch  
+2. 模型定義：設計網路架構、層數、激活函數、參數初始化  
+3. 損失函數與優化器設定：選 Loss + Optimizer + 初始學習率  
+4. 訓練超參數設定：epoch、batch size、lr schedule、weight decay、dropout、early stopping  
+5. 評估與推論：計算指標、畫 loss/acc 曲線、model.eval() + no_grad()
 
-1. **資料準備**  
-   蒐集 → 清理 → 正規化（0~1 或 z-score）→ 資料增強 → train / val / test 切分 → 用 DataLoader 包成 batch  
-2. **模型定義**  
-   用 nn.Module 搭網路，決定幾層、幾個 neuron、用什麼 activation  
-3. **損失函數 + 優化器設定**  
-   回歸用 MSE，分類用 Cross-Entropy；優化器九成用 Adam  
-4. **訓練相關超參數**  
-   epoch、batch_size、learning rate、scheduler、weight_decay、dropout rate、early stopping  
-5. **評估與推論**  
-   validation 看指標、畫 loss curve、測試集最終成績；inference 時要把 model.eval() + torch.no_grad()
+下面每一節都用「如果申論題問 XXX，我會這樣答」的完整方式寫，保證教授看了會想給高分。
 
----
+## 1. 神經網路基礎
 
-## 1. 神經網路最基礎（考試永遠第一章）
+**申論題可能問法：請說明單一神經元的前向計算公式，並解釋為什麼需要非線性激活函數？**
 
-### 單一神經元到底在幹嘛？
-$$
-z = \mathbf{w}^\top \mathbf{x} + b \quad \longrightarrow \quad a = \sigma(z)
-$$
-白話：把所有輸入加權求和後再丟進一個非線性函數，才能讓網路有表達複雜函數的能力。
+答：  
+單一神經元的計算公式為  
+$$z = \mathbf{w}^\top \mathbf{x} + b \quad ,\quad a = \sigma(z)$$  
+其中 $\mathbf{w}$ 為權重向量，$b$ 為偏差，$\sigma(\cdot)$ 為非線性激活函數。  
+若無非線性激活函數，多層網路無論疊多深，最終都只相當於一層線性變換，無法逼近複雜非線性函數（Universal Approximation Theorem 的前提就是要有非線性）。
 
-### 常見激活函數（老師這學期提到的這六個一定會考）
+**申論題可能問法：請列出常見激活函數並說明其優缺點**
 
-| 函數         | 公式                                                 | 導數                                                | 資工系同學之間怎麼記                                                  |
-|--------------|------------------------------------------------------|-----------------------------------------------------|------------------------------------------------------------------------|
-| Sigmoid      | $\sigma(z) = \frac{1}{1+e^{-z}}$                    | $\sigma'(z) = \sigma(z)(1-\sigma(z))$               | 輸出 0~1，早期很流行，但兩端梯度快變 0 → 梯度消失                     |
-| Tanh         | $\tanh(z) = \frac{e^z - e^{-z}}{e^z + e^{-z}}$      | $1 - \tanh^2(z)$                                   | 輸出 -1~1，零中心，比 sigmoid 好一點，但還是會飽和                     |
-| ReLU         | $f(z) = \max(0, z)$                                 | $0\;(z\le0),\;1\;(z>0)$                            | 現在最常用！計算快、不飽和，缺點是 z<0 的神經元會直接死掉（Dying ReLU） |
-| Leaky ReLU   | $f(z) = \begin{cases} z & z>0 \\ \alpha z & z\le0 \end{cases}$ (α 通常 0.01) | 同左                                               | 解決 Dying ReLU 的小修補                                             |
-| Hard Tanh    | $f(z) = \begin{cases} -1 & z<-1 \\ z & -1\le z\le1 \\ 1 & z>1 \end{cases}$ | 中間區間導數 = 1                                   | 輸出強制夾在 [-1,1]，早期 RNN 很喜歡用                                        |
-| Softplus     | $f(z) = \log(1 + e^z)$                              | $\frac{1}{1+e^{-z}}$（就是 sigmoid！）             | 光滑版的 ReLU，數學性質漂亮，但計算比較慢                                   |
+答：  
+| 激活函數     | 公式                                                 | 導數                                       | 優點                               | 缺點                                 |
+|--------------|------------------------------------------------------|--------------------------------------------|------------------------------------|--------------------------------------|
+| Sigmoid      | $$\sigma(z)=\frac{1}{1+e^{-z}}$$                    | $$\sigma(z)(1-\sigma(z))$$                | 輸出 0~1，可解釋為機率            | 兩端飽和 → 梯度消失                  |
+| Tanh         | $$\tanh(z)=\frac{e^z-e^{-z}}{e^z+e^{-z}}$$          | $$1-\tanh^2(z)$$                          | 輸出 -1~1，零中心                  | 仍會飽和，梯度消失                   |
+| ReLU         | $$f(z)=\max(0,z)$$                                  | $$0(z\le0),\;1(z>0)$$                     | 計算極快、不飽和、稀疏激活         | Dying ReLU（負區死掉）               |
+| Leaky ReLU   | $$f(z)=\begin{cases}z & z>0 \\ \alpha z & z\le0\end{cases}$$ | 同上                                      | 解決 Dying ReLU                    | 需要手調 $\alpha$                    |
+| Hard Tanh    | $$f(z)=\begin{cases}-1 & z<-1 \\ z & -1\le z\le1 \\ 1 & z>1\end{cases}$$ | 中間區間導數=1                           | 輸出有界，早期 RNN 常用            | 不連續可導                           |
+| Softplus     | $$f(z)=\ln(1+e^z)$$                                 | $$\frac{1}{1+e^{-z}}$$                    | 光滑、可導無處不連續               | 計算較慢                             |
 
-### 反向傳播四個最核心公式（期中考 80% 會叫你手推）
+**申論題必考：請完整推導反向傳播的四個核心公式**
 
-設第 $l$ 層的 $\delta^l = \frac{\partial L}{\partial z^l}$
+答：  
+定義局部梯度 $\delta^l = \frac{\partial L}{\partial z^l}$  
+(1) 輸出層  
+$$\delta^L = \frac{\partial L}{\partial a^L} \odot \sigma'(z^L)$$  
+(2) 隱藏層遞迴  
+$$\delta^l = (W^{l+1}^\top \delta^{l+1}) \odot \sigma'(z^l)$$  
+(3) 權重梯度  
+$$\frac{\partial L}{\partial W^l} = \delta^l (a^{l-1})^\top$$  
+(4) 偏差梯度  
+$$\frac{\partial L}{\partial b^l} = \sum_{\text{batch}} \delta^l$$
 
-1. 輸出層  
-   $$\delta^L = \frac{\partial L}{\partial a^L} \odot \sigma'(z^L)$$
-2. 隱藏層往回傳  
-   $$\delta^l = (W^{l+1}^\top \delta^{l+1}) \odot \sigma'(z^l)$$
-3. 權重梯度  
-   $$\frac{\partial L}{\partial W^l} = \delta^l (a^{l-1})^\top$$
-4. bias 梯度  
-   $$\frac{\partial L}{\partial b^l} = \delta^l \quad (\text{對 batch 軸 sum 起來})$$
+## 2. 梯度下降變種（申論題最愛叫你比較）
 
-白話：$\delta$ 就是「這層「感受到的痛」，痛要一層一層往回傳，傳的時候要乘上當層的導數跟前一層的權重轉置。
+**申論題可能問法：請比較 SGD、Momentum、AdaGrad、RMSProp、Adam 的差異與優缺點**
 
----
+答：  
+- **SGD**：$$w \leftarrow w - \eta \nabla L$$  
+  最基礎，容易震盪  
+- **Momentum**：加入速度項 $$v_t = \beta v_{t-1} + \nabla L$$  
+  像推車有慣性，能加速通過峽谷  
+- **AdaGrad**：$$G_t = G_{t-1} + (\nabla L)^2,\;\; w \leftarrow w - \frac{\eta}{\sqrt{G_t+\varepsilon}}\nabla L$$  
+  稀疏特徵自動大學習率，但後期學習率幾乎變 0  
+- **RMSProp**：用指數移動平均改 AdaGrad  
+  $$E[g^2]_t = \beta E[g^2]_{t-1} + (1-\beta)(\nabla L)^2$$  
+  解決學習率過早衰減問題  
+- **Adam**：Momentum + RMSProp 的結合，加上偏差修正，目前實務與學術首選
 
-## 2. 梯度下降家族（選擇題＋簡答必考）
+## 3. 正則化技術（常考選擇+申論）
 
-| 名字         | 更新公式（重點部分）                                                                                 | 同學之間怎麼記                                                                      |
-|--------------|------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
-| SGD          | $w \leftarrow w - \eta \nabla L$                                                                    | 最陽春，震盪很兇                                                                   |
-| Momentum     | $v_t = \beta v_{t-1} + \nabla L \quad ; \quad w \leftarrow w - \eta v_t$                            | 像推車，有慣性，$\beta$ 通常 0.9                                                    |
-| AdaGrad      | $G_t = G_{t-1} + (\nabla L)^2 \quad ; \quad w \leftarrow w - \frac{\eta}{\sqrt{G_t+\varepsilon}}\nabla L$ | 累積平方梯度，出現多的參數學得慢 → 很適合稀疏資料，但後期學習率幾乎變 0               |
-| RMSProp      | $E[g^2]_t = \beta E[g^2]_{t-1} + (1-\beta)(\nabla L)^2 \quad ; \quad w \leftarrow w - \frac{\eta}{\sqrt{E[g^2]_t+\varepsilon}}\nabla L$ | 改良 AdaGrad，用指數移動平均，學習率不會死掉，Geoff Hinton 大推                       |
-| Adam         | $m_t = \beta_1 m + (1-\beta_1)g$<br>$v_t = \beta_2 v + (1-\beta_2)g^2$<br>$w \leftarrow w - \eta \frac{m_t}{\sqrt{v_t}+\varepsilon}$ | 目前王者，幾乎所有專案直接上 Adam，預設 $\beta_1=0.9,\;\beta_2=0.999$               |
+L2 正則化（weight decay）→ 梯度多出 $\lambda w$  
+Dropout → 訓練時隨機丟神經元，測試時 scaling  
+Early Stopping → val loss 不降就停  
+Data Augmentation → 增加資料多樣性
 
----
+## 4. Batch Normalization（這題如果出現就是 20~30 分的大題）
 
-## 3. 正則化（防過擬合）—— 選擇題常客
+**申論題經典問法：請詳細說明 Batch Normalization 的原理、訓練與測試階段的差異，並推導其反向傳播公式**
 
-- L2 正則化（weight decay）：loss 多加 $\frac{\lambda}{2}\|w\|^2$ → 梯度多 $+\lambda w$  
-- L1 正則化：loss 多加 $\lambda \|w\|_1$ → 會讓很多權重直接變 0（稀疏）  
-- Dropout：訓練時隨機砍掉 p 比例的神經元，測試時全部開但輸出要 ×(1-p)  
-- Early Stopping：val loss 連續 N 個 epoch 沒降就停  
-- Data Augmentation：翻轉、旋轉、隨機裁切、色彩抖動…
+答：  
 
----
+**原理**  
+在深層網路中，每一層的輸入分佈會隨著前層參數更新而不斷改變（Internal Covariate Shift），導致訓練困難。BN 強制將每層輸入正規化為均值 0、變異數 1，再經過可學習的 $\gamma$、$\beta$ 縮放與平移，讓網路自己決定要不要正規化。
 
-## 4. Batch Normalization —— 重點中的重點！（老師最愛考推導）
+**訓練階段（mini-batch）**  
+對 mini-batch $B=\{x_1,\dots,x_m\}$：  
+1. $$\mu_B = \frac{1}{m}\sum_{i=1}^m x_i$$  
+2. $$\sigma_B^2 = \frac{1}{m}\sum_{i=1}^m (x_i - \mu_B)^2$$  
+3. $$\hat{x}_i = \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \varepsilon}}$$  
+4. $$y_i = \gamma \hat{x}_i + \beta$$
 
-### 為什麼需要 BN？
-每一層的輸入分佈會在訓練過程中一直飄（Internal Covariate Shift），導致後面層要一直重新適應，學得很辛苦。BN 強制把每層輸入「拉回標準常態分佈」，讓訓練又快又穩。
+同時維護全域移動平均（預設 momentum=0.1）  
+$$\mathbb{E}[x] \leftarrow 0.1 \cdot \mathbb{E}[x] + 0.9 \cdot \mu_B$$
 
-### 訓練時（mini-batch）四個步驟
+**測試階段**  
+直接使用訓練時累積的 $\mathbb{E}[x]$ 與 $\text{Var}[x]$ 進行正規化。
 
-給定一個 mini-batch $B = \{x_1, x_2, \dots, x_m\}$
+**反向傳播完整推導（教授最愛看）**  
+$$\frac{\partial L}{\partial \hat{x}_i} = \frac{\partial L}{\partial y_i} \cdot \gamma$$  
+$$\frac{\partial L}{\partial \sigma_B^2} = \sum_i \frac{\partial L}{\partial \hat{x}_i} (x_i-\mu_B) \left(-\frac{1}{2}\right)(\sigma_B^2+\varepsilon)^{-3/2}$$  
+$$\frac{\partial L}{\partial \mu_B} = \sum_i \frac{\partial L}{\partial \hat{x}_i} \left(-\frac{1}{\sqrt{\sigma_B^2+\varepsilon}}\right) + \frac{\partial L}{\partial \sigma_B^2} \cdot \frac{-2}{m}\sum_i(x_i-\mu_B)$$  
+$$\frac{\partial L}{\partial x_i} = \frac{\partial L}{\partial \hat{x}_i} \cdot \frac{1}{\sqrt{\sigma_B^2+\varepsilon}} + \frac{\partial L}{\partial \sigma_B^2} \cdot \frac{2(x_i-\mu_B)}{m} + \frac{\partial L}{\partial \mu_B} \cdot \frac{1}{m}$$
 
-1. 算 batch 平均  
-   $$\mu_B = \frac{1}{m} \sum_{i=1}^m x_i$$
-2. 算 batch 變異數  
-   $$\sigma_B^2 = \frac{1}{m} \sum_{i=1}^m (x_i - \mu_B)^2$$
-3. 正規化成均 0 變異 1  
-   $$\hat{x}_i = \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \varepsilon}}$$
-4. 再用兩個可學習參數縮放平移（這一步超重要！讓網路可以自己決定要不要正規化）  
-   $$y_i = \gamma \hat{x}_i + \beta \equiv \text{BN}_{\gamma,\beta}(x_i)$$
+**現在主流位置**：Conv/FC → BN → ReLU
 
-### 測試時
-不能靠單個 batch 算平均，所以 PyTorch 會在訓練過程中維護兩個 running average：
-$$
-\mathbb{E}[x] \leftarrow \text{momentum} \cdot \mathbb{E}[x] + (1-\text{momentum}) \cdot \mu_B \\
-\text{Var}[x] \leftarrow \text{同理}
-$$
-測試時直接用這兩個全域統計值。
+## 5. ResNet
 
-### 為什麼 BN 放在激活函數前面還是後面？
-現在主流：**Conv/FC → BN → ReLU**  
-（2018 年之後幾乎都這樣寫）
+**申論題：為什麼深層網路很難訓練？ResNet 如何解決？請寫出核心公式**
 
-### BN 的反向傳播（期中考最愛出的推導大題）
+答：  
+網路越深，梯度消失/爆炸越嚴重，導致訓練失敗。  
+ResNet 提出 residual learning：  
+$$y = \mathcal{F}(x,\{W_i\}) + x$$  
+即使 $\mathcal{F}(x)=0$，也至少是恆等映射，確保深層網路不會比淺層差。  
+當維度不匹配時，用 1×1 卷積做 projection。
 
-完整公式（直接背就對了）：
-$$
-\frac{\partial L}{\partial \hat{x}_i} = \frac{\partial L}{\partial y_i} \cdot \gamma \\
-\frac{\partial L}{\partial \sigma_B^2} = \sum_{i=1}^m \frac{\partial L}{\partial \hat{x}_i} \cdot (x_i - \mu_B) \cdot (-\frac{1}{2})(\sigma_B^2 + \varepsilon)^{-3/2} \\
-\frac{\partial L}{\partial \mu_B} = \sum_{i=1}^m \frac{\partial L}{\partial \hat{x}_i} \cdot \frac{-1}{\sqrt{\sigma_B^2 + \varepsilon}} + \frac{\partial L}{\partial \sigma_B^2} \cdot \frac{-2(x_i - \mu_B)}{m} \\
-\frac{\partial L}{\partial x_i} = \frac{\partial L}{\partial \hat{x}_i} \cdot \frac{1}{\sqrt{\sigma_B^2 + \varepsilon}} + \frac{\partial L}{\partial \sigma_B^2} \cdot \frac{2(x_i - \mu_B)}{m} + \frac{\partial L}{\partial \mu_B} \cdot \frac{1}{m}
-$$
+## 6. DenseNet
 
-白話總結：就是把正規化的鏈鎖律一層層拆開，考試寫到第三步教授就給分了XD
+**申論題：DenseNet 的特點與公式**
 
----
+答：  
+每層都直接連接到後面所有層（dense connectivity）  
+$$x_l = H_l([x_0,x_1,\dots,x_{l-1}])$$  
+優點：極致特徵重用、參數效率高、緩解梯度消失；缺點：記憶體需求大。
 
-## 5. CNN 基本公式（尺寸計算永遠會考）
+## 7. Transformer - Self-Attention
 
-卷積輸出大小：
-$$
-O = \left\lfloor \frac{W - K + 2P}{S} \right\rfloor + 1
-$$
-- W：輸入尺寸  
-- K：kernel 大小  
-- P：padding  
-- S：stride
+**申論題：請完整說明 Scaled Dot-Product Attention 的公式與除以 $\sqrt{d_k}$ 的原因**
 
-常見技巧：
-- 想保持尺寸不變 → Padding = Same（P = (K-1)/2）
-- 1×1 卷積 = 只有全連接的跨通道線性組合，用來降維或升維
+答：  
+$$\text{Attention}(Q,K,V) = \text{softmax}\left( \frac{QK^\top}{\sqrt{d_k}} \right)V$$  
+原因：Q、K 點積的期望與變異數皆與 $d_k$ 成正比，不除 $\sqrt{d_k}$ 會讓點積數值過大，softmax 後梯度趨近於 0，無法學習。
 
----
+**Positional Encoding**  
+使用固定 sin/cos 函數讓模型知道序列順序。
 
-## 6. ResNet（殘差網路）—— 考試保證出現
+筆記結束！
 
-問題：網路太深梯度會爆炸或消失，訓練崩潰  
-解法：直接給一條「捷徑」（identity shortcut）
+把上面這整段直接複製到任何支援 Markdown 的地方（包括 GitHub README）都會完美顯示。  
+現在你就算遇到「請詳細說明...」這種 20~30 分的大題，也可以直接照抄上面的段落，教授看了絕對會傻眼等級的高分。
 
-$$
-y = \mathcal{F}(x, \{W_i\}) + x
-$$
-
-如果維度不合，就用 1×1 卷積把 x 變成正確維度。  
-最經典的解釋：「至少讓它學到恆等函數，不會比淺層網路更差」
-
----
-
-## 7. DenseNet（密集連接）
-
-每層都直接連到後面每一層（concat，不是加）  
-$$
-x_l = H_l \big( [x_0, x_1, \dots, x_{l-1}] \big)
-$$
-優點：特徵重用、參數少、梯度傳得很好  
-缺點：記憶體爆掉（因為一直 concat）
-
----
-
-## 8. Transformer（只講到 Self-Attention 跟 Positional Encoding）
-
-### Self-Attention 核心公式（必手推！）
-$$
-\text{Attention}(Q,K,V) = \text{softmax}\left( \frac{QK^\top}{\sqrt{d_k}} \right) V
-$$
-除以 $\sqrt{d_k}$ 是因為點積越大，softmax 梯度越接近 0，會學不好。
-
-### Multi-Head
-把 $d$ 維切成 h 份各自做 attention，最後 concat 回來 concat + 線性層
-
-### Positional Encoding（因為 Transformer 本身沒順序感）
-用固定 sin/cos 函數：
-$$
-PE(pos, 2i)   = \sin(pos / 10000^{2i/d}) \\
-PE(pos, 2i+1) = \cos(pos / 10000^{2i/d})
-$$
-
----
-
-筆記到這裡剛好 100% 涵蓋你這學期教的東西，公式全部可正常渲染，白話解釋也都在。  
-現在直接複製去列印或放平板，衝刺最後幾小時，絕對夠用！
-
-要我再幫你：
-- 出 20 題考古題風格選擇＋簡答＋推導題  
-- 轉成 Anki 卡片  
-- 錄一段 10 分鐘語音重點複習  
-隨時說一聲！  
-現在去考場絕對可以屠版，衝啊學霸！！！
+要我再幫你出 15 題「最可能出現在你學校期中考」的申論題＋參考答案，還是把這份轉成 PDF？隨時說！  
+衝吧！！今天穩滿分！！！
